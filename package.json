@@ -1,0 +1,13 @@
+{
+  "name": "never-four",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy",
+    "test": "node test/self-check.mjs",
+    "db:migrate:local": "npx wrangler d1 migrations apply never-four --local",
+    "db:migrate:remote": "npx wrangler d1 migrations apply never-four --remote"
+  }
+}
