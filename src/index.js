@@ -149,35 +149,18 @@ function publicUrl(setKey, requestUrl) {
   return new URL(setKey === "now" ? "/now" : `/${setKey}`, requestUrl).toString();
 }
 
-function renderPage(set, env, currentUrl) {
-  const siteTitle = env.SITE_TITLE || "事不过三";
-  const ownerName = env.OWNER_NAME || "";
-  const slots = [0, 1, 2].map((index) => renderSlot(set.items[index], index)).join("");
-  const updated = set.updated_at ? formatDate(set.updated_at) : "Awaiting first POST";
-  const description = set.items.map((item) => item.text).join(" · ") || `${siteTitle}: ${set.title}`;
-  const canonical = new URL(set.key === "now" ? "/now" : `/${set.key}`, currentUrl).toString();
-
-  return `<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(set.title)} · ${escapeHtml(siteTitle)}</title>
-  <meta name="description" content="${escapeAttr(description)}">
-  <meta property="og:title" content="${escapeAttr(`${set.title} · ${siteTitle}`)}">
-  <meta property="og:description" content="${escapeAttr(description)}">
-  <meta property="og:url" content="${escapeAttr(canonical)}">
-  <meta property="og:type" content="website">
-  <style>
+const STYLE = `
     :root {
       color-scheme: light;
-      --paper: oklch(98.3% 0.008 96);
-      --ink: oklch(18% 0.018 250);
-      --muted: oklch(48% 0.018 250);
-      --line: oklch(82% 0.022 105);
-      --accent: oklch(48% 0.17 34);
-      --wash: oklch(93% 0.028 145);
-      --slot: oklch(99% 0.004 96);
+      --paper: oklch(98.5% 0.009 92);
+      --ink: oklch(22% 0.014 65);
+      --muted: oklch(50% 0.012 68);
+      --faint: oklch(70% 0.012 72);
+      --line: oklch(87% 0.013 82);
+      --accent: oklch(47% 0.176 33);
+      --fill: oklch(99.5% 0.004 92);
+      --empty: oklch(96.4% 0.008 90);
+      --shadow: 22% 0.02 65;
     }
     * { box-sizing: border-box; }
     body {
@@ -185,7 +168,7 @@ function renderPage(set, env, currentUrl) {
       min-height: 100vh;
       background: var(--paper);
       color: var(--ink);
-      font-family: ui-serif, "Songti SC", "Noto Serif SC", Georgia, serif;
+      font-family: "Songti SC", ui-serif, "Noto Serif SC", Georgia, serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
@@ -196,17 +179,18 @@ function renderPage(set, env, currentUrl) {
       background: var(--ink);
       color: var(--paper);
       padding: .7rem 1rem;
+      border-radius: 4px;
       z-index: 1;
     }
     .skip:focus { top: 1rem; }
     main {
-      width: min(1120px, calc(100% - 32px));
+      width: min(1120px, calc(100% - 40px));
       min-height: 100vh;
       margin: 0 auto;
       padding: clamp(32px, 7vw, 88px) 0;
       display: grid;
       align-content: center;
-      gap: clamp(28px, 5vw, 56px);
+      gap: clamp(28px, 5vw, 52px);
     }
     header {
       display: grid;
@@ -214,79 +198,116 @@ function renderPage(set, env, currentUrl) {
       gap: 16px;
       align-items: end;
       border-bottom: 1px solid var(--line);
-      padding-bottom: clamp(18px, 3vw, 28px);
+      padding-bottom: clamp(16px, 2.4vw, 24px);
     }
     .brand {
-      margin: 0 0 10px;
+      margin: 0 0 12px;
       color: var(--accent);
-      font: 700 clamp(16px, 2vw, 20px) ui-sans-serif, system-ui, "PingFang SC", sans-serif;
+      font: 700 clamp(15px, 1.6vw, 18px)/1 ui-sans-serif, system-ui, "PingFang SC", sans-serif;
+      letter-spacing: .02em;
     }
     h1 {
       margin: 0;
       max-width: 12ch;
-      font-size: clamp(48px, 10vw, 128px);
-      line-height: .92;
-      letter-spacing: 0;
+      font-size: clamp(46px, 9.5vw, 120px);
+      line-height: .94;
+      letter-spacing: .01em;
       text-wrap: balance;
     }
     .meta {
-      margin: 0 0 8px;
+      margin: 0 0 10px;
       color: var(--muted);
-      font: 500 14px/1.5 ui-sans-serif, system-ui, "PingFang SC", sans-serif;
+      font: 500 13px/1.5 ui-sans-serif, system-ui, "PingFang SC", sans-serif;
       text-align: right;
+      letter-spacing: .04em;
       font-variant-numeric: tabular-nums;
     }
     .slots {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: clamp(12px, 2vw, 18px);
+      gap: clamp(12px, 1.6vw, 16px);
     }
     .slot {
-      min-height: clamp(210px, 28vw, 340px);
-      padding: clamp(18px, 3vw, 28px);
-      border-radius: 8px;
-      background: var(--slot);
-      box-shadow: 0 1px 0 var(--line), 0 18px 50px oklch(18% 0.02 250 / .08);
+      position: relative;
+      min-height: clamp(176px, 21vw, 260px);
+      padding: clamp(20px, 2.4vw, 30px);
+      border-radius: 4px;
+      border: 1px solid var(--line);
       display: grid;
       grid-template-rows: auto 1fr;
-      gap: 28px;
+      gap: 18px;
       text-decoration: none;
       color: inherit;
     }
+    .slot.filled {
+      background: var(--fill);
+      box-shadow: 0 1px 2px oklch(var(--shadow) / .06), 0 14px 32px oklch(var(--shadow) / .06);
+    }
     .slot.empty {
-      background: color-mix(in oklch, var(--wash) 56%, var(--paper));
-      box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--line) 70%, transparent);
+      background: var(--empty);
+      border-style: dashed;
+      border-color: color-mix(in oklch, var(--line) 82%, var(--ink));
     }
     .num {
       color: var(--accent);
-      font: 700 13px/1 ui-sans-serif, system-ui, sans-serif;
+      font: 700 12px/1 ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: .16em;
       font-variant-numeric: tabular-nums;
     }
+    .empty .num { color: var(--faint); }
     .text {
       align-self: end;
       margin: 0;
-      font-size: clamp(24px, 3.2vw, 42px);
-      line-height: 1.14;
+      font-size: clamp(23px, 2.9vw, 38px);
+      line-height: 1.18;
       text-wrap: balance;
     }
-    .empty .text {
-      color: color-mix(in oklch, var(--muted) 45%, transparent);
+    .go {
+      position: absolute;
+      top: clamp(18px, 2.2vw, 28px);
+      right: clamp(18px, 2.2vw, 28px);
+      color: var(--faint);
+      font: 600 17px/1 ui-sans-serif, system-ui, sans-serif;
     }
+    .notice {
+      display: grid;
+      gap: 20px;
+      justify-items: start;
+      padding: clamp(8px, 2vw, 24px) 0;
+    }
+    .notice p {
+      margin: 0;
+      max-width: 24ch;
+      font-size: clamp(20px, 2.4vw, 30px);
+      line-height: 1.42;
+      color: var(--muted);
+    }
+    .back {
+      color: var(--accent);
+      text-decoration: none;
+      font: 600 15px/1 ui-sans-serif, system-ui, "PingFang SC", sans-serif;
+      letter-spacing: .02em;
+    }
+    .back:hover { text-decoration: underline; text-underline-offset: 4px; }
     footer {
       display: flex;
       justify-content: space-between;
       gap: 16px;
       color: var(--muted);
-      font: 500 13px/1.5 ui-sans-serif, system-ui, "PingFang SC", sans-serif;
+      font: 500 12px/1.5 ui-sans-serif, system-ui, "PingFang SC", sans-serif;
+      letter-spacing: .04em;
     }
+    .key { color: var(--faint); }
     @media (hover: hover) {
       a.slot {
-        transition: transform 160ms cubic-bezier(.16,1,.3,1), box-shadow 160ms cubic-bezier(.16,1,.3,1);
+        transition: transform 180ms cubic-bezier(.16,1,.3,1), box-shadow 180ms cubic-bezier(.16,1,.3,1);
       }
       a.slot:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 1px 0 var(--line), 0 24px 60px oklch(18% 0.02 250 / .12);
+        transform: translateY(-2px);
+        box-shadow: 0 2px 3px oklch(var(--shadow) / .05), 0 20px 42px oklch(var(--shadow) / .10);
       }
+      a.slot .go { transition: transform 180ms cubic-bezier(.16,1,.3,1), color 180ms; }
+      a.slot:hover .go { color: var(--accent); transform: translate(2px, -2px); }
     }
     @media (max-width: 760px) {
       main { align-content: start; }
@@ -296,51 +317,106 @@ function renderPage(set, env, currentUrl) {
       }
       .meta { text-align: left; }
       .slots { grid-template-columns: 1fr; }
-      .slot { min-height: 156px; }
-      footer { display: grid; }
+      .slot { min-height: clamp(120px, 26vw, 156px); }
+      footer { display: grid; gap: 6px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      a.slot { transition: none; }
+      a.slot, a.slot .go { transition: none; }
       a.slot:hover { transform: none; }
-    }
+    }`;
+
+function documentShell(head, body) {
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+${head}
+  <style>${STYLE}
   </style>
 </head>
 <body>
-  <a class="skip" href="#main-content">Skip to main content</a>
+  <a class="skip" href="#main-content">跳到主要内容</a>
   <main id="main-content">
-    <header>
+${body}
+  </main>
+</body>
+</html>`;
+}
+
+function renderPage(set, env, currentUrl) {
+  const siteTitle = env.SITE_TITLE || "事不过三";
+  const ownerName = env.OWNER_NAME || "";
+  const slots = [0, 1, 2].map((index) => renderSlot(set.items[index], index)).join("\n      ");
+  const meta = set.updated_at ? formatDate(set.updated_at) : "尚未发布";
+  const description = set.items.map((item) => item.text).join(" · ") || `${siteTitle}：${set.title}`;
+  const canonical = new URL(set.key === "now" ? "/now" : `/${set.key}`, currentUrl).toString();
+
+  const head = `  <title>${escapeHtml(set.title)} · ${escapeHtml(siteTitle)}</title>
+  <meta name="description" content="${escapeAttr(description)}">
+  <meta property="og:title" content="${escapeAttr(`${set.title} · ${siteTitle}`)}">
+  <meta property="og:description" content="${escapeAttr(description)}">
+  <meta property="og:url" content="${escapeAttr(canonical)}">
+  <meta property="og:type" content="website">`;
+
+  const body = `    <header>
       <div>
         <p class="brand">${escapeHtml(siteTitle)}</p>
         <h1>${escapeHtml(set.title)}</h1>
       </div>
-      <p class="meta">${escapeHtml(updated)}</p>
+      <p class="meta">${escapeHtml(meta)}</p>
     </header>
     <section class="slots" aria-label="${escapeAttr(set.title)}">
       ${slots}
     </section>
     <footer>
       <span>${escapeHtml(ownerName)}</span>
-      <span>${escapeHtml(set.key)}</span>
-    </footer>
-  </main>
-</body>
-</html>`;
+      <span class="key">${escapeHtml(set.key)}</span>
+    </footer>`;
+
+  return documentShell(head, body);
 }
 
 function renderSlot(item, index) {
   const number = String(index + 1).padStart(2, "0");
   if (!item) {
-    return `<article class="slot empty"><span class="num">${number}</span><p class="text"> </p></article>`;
+    return `<article class="slot empty"><span class="num">${number}</span><p class="text" aria-hidden="true"></p></article>`;
   }
 
-  const content = `<span class="num">${number}</span><p class="text">${escapeHtml(item.text)}</p>`;
+  const inner = `<span class="num">${number}</span><p class="text">${escapeHtml(item.text)}</p>`;
   return item.url
-    ? `<a class="slot" href="${escapeAttr(item.url)}" rel="noopener noreferrer">${content}</a>`
-    : `<article class="slot">${content}</article>`;
+    ? `<a class="slot filled" href="${escapeAttr(item.url)}" rel="noopener noreferrer"><span class="go" aria-hidden="true">↗</span>${inner}</a>`
+    : `<article class="slot filled">${inner}</article>`;
+}
+
+function renderNotFound(env) {
+  const siteTitle = env.SITE_TITLE || "事不过三";
+  const ownerName = env.OWNER_NAME || "";
+
+  const head = `  <title>未找到 · ${escapeHtml(siteTitle)}</title>
+  <meta name="robots" content="noindex">`;
+
+  const body = `    <header>
+      <div>
+        <p class="brand">${escapeHtml(siteTitle)}</p>
+        <h1>未找到</h1>
+      </div>
+      <p class="meta">404</p>
+    </header>
+    <section class="notice">
+      <p>这个集合不存在，或者还没有内容。</p>
+      <a class="back" href="/now">回到 now →</a>
+    </section>
+    <footer>
+      <span>${escapeHtml(ownerName)}</span>
+      <span class="key">404</span>
+    </footer>`;
+
+  return documentShell(head, body);
 }
 
 function notFound(env) {
-  return html(renderPage({ key: "404", title: "未找到", updated_at: null, items: [] }, env, "https://never-four.invalid/"), false, 404);
+  return html(renderNotFound(env), false, 404);
 }
 
 function json(payload, status = 200) {
@@ -364,13 +440,9 @@ function html(body, headOnly, status = 200) {
 }
 
 function formatDate(value) {
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+  const date = new Date(value);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getUTCFullYear()}.${pad(date.getUTCMonth() + 1)}.${pad(date.getUTCDate())}`;
 }
 
 function escapeHtml(value) {
