@@ -292,12 +292,19 @@ const STYLE = `
     footer {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       gap: 16px;
       color: var(--muted);
       font: 500 12px/1.5 ui-sans-serif, system-ui, "PingFang SC", sans-serif;
       letter-spacing: .04em;
     }
     .key { color: var(--faint); }
+    .repo {
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 160ms;
+    }
+    .repo:hover { color: var(--accent); }
     @media (hover: hover) {
       a.slot {
         transition: transform 180ms cubic-bezier(.16,1,.3,1), box-shadow 180ms cubic-bezier(.16,1,.3,1);
@@ -371,10 +378,17 @@ function renderPage(set, env, currentUrl) {
     </section>
     <footer>
       <span>${escapeHtml(ownerName)}</span>
+      ${renderRepoLink(env)}
       <span class="key">${escapeHtml(set.key)}</span>
     </footer>`;
 
   return documentShell(head, body);
+}
+
+function renderRepoLink(env) {
+  const url = env.REPO_URL;
+  if (!url) return "";
+  return `<a class="repo" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">开源于 GitHub <span aria-hidden="true">↗</span></a>`;
 }
 
 function renderSlot(item, index) {
@@ -409,6 +423,7 @@ function renderNotFound(env) {
     </section>
     <footer>
       <span>${escapeHtml(ownerName)}</span>
+      ${renderRepoLink(env)}
       <span class="key">404</span>
     </footer>`;
 
