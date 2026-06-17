@@ -30,10 +30,12 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4.101.0"
           command: d1 migrations apply never-four --remote
       - name: Deploy
         if: env.CLOUDFLARE_API_TOKEN != ''
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4.101.0"
           command: deploy
