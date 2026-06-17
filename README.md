@@ -1,105 +1,87 @@
-# Never Four
+# 事不过三 · Never Four
 
-事不过三 is a personal self-hosted page for showing the current set of up to three things. The public page is read-only; sets are changed only by authenticated POST requests.
+一个自托管的极简页面，只展示「当前最多三件事」。页面公开只读，内容仅能通过带全局 token 的 POST 整组替换。
 
-## V1 Scope
+- `/` 和 `/now` 展示 `now` 这一组。
+- `/:setKey` 展示已存在的组，未知组返回 404。
+- 一组 0–3 项，超过 3 项会被拒绝（不截断）。
 
-- `/` and `/now` show the `now` set.
-- `/:setKey` shows an existing set; unknown sets return 404.
-- `POST /api/sets/:setKey` replaces the whole set.
-- A set contains 0 to 3 items. More than 3 is rejected, not trimmed.
-- Each item has `text` and optional `url`.
-- Pages are public. Writes require one global `WRITE_TOKEN`.
-- Rendering is server-side HTML and CSS.
+线上实例：<https://never-four.urbancpz.workers.dev>
 
-## Deployment Requirements
+---
 
-- Cloudflare account with Workers and D1 access.
-- Node.js and npm.
-- Wrangler via `npx wrangler`.
-- A Worker named `never-four`.
-- A D1 database named `never-four`.
-- A production secret named `WRITE_TOKEN`.
+## 部署
 
-Current deployment:
+需要 Node.js 18+、一个开通了 Workers 和 D1 的 Cloudflare 账号。命令都通过 `npx wrangler` 运行，无需全局安装。
 
-- URL: `https://never-four.urbancpz.workers.dev`
-- Worker: `never-four`
-- D1 database: `never-four`
-- D1 database id: `1da4d2b7-8f64-43aa-8746-0967c994271e`
-- Local secret file: `.dev.vars` is intentionally ignored by Git.
+**先在本地跑起来（最快，1 分钟看到页面）：**
 
-## Cloudflare Setup Order
+```bash
+cp .dev.vars.example .dev.vars   # 然后把里面的 WRITE_TOKEN 改成任意本地 token
+npm run db:migrate:local         # 建本地 D1 表
+npm run dev                      # 打开 http://localhost:8787
+npm test                         # 覆盖鉴权 / 超 3 项拒绝 / 整组替换 的最小测试
+```
 
-Run these from the project root after the Worker code and `wrangler.toml` exist:
+**部署到 Cloudflare：**
 
 ```bash
 npx wrangler login
-npx wrangler d1 create never-four
-npx wrangler secret put WRITE_TOKEN
-npx wrangler deploy
+npx wrangler d1 create never-four     # 把输出里的 database_id 填进 wrangler.toml 的 [[d1_databases]]
+npm run db:migrate:remote             # 给线上 D1 建表
+npx wrangler secret put WRITE_TOKEN   # 设置全局写入 token（POST 时要用）
+npm run deploy                        # 部署，输出里就是你的 workers.dev 地址
 ```
 
-If `npx wrangler secret put WRITE_TOKEN` says the Worker name is missing, you are either outside the project root or `wrangler.toml` does not define `name = "never-four"` yet.
+部署后访问输出的 `https://never-four.<你的子域>.workers.dev` 即可公开查看。
 
-Temporary workaround:
+> 若 `wrangler secret put` 提示找不到 Worker 名，确认你在项目根目录、且 `wrangler.toml` 里 `name = "never-four"`。临时绕过：`npx wrangler secret put WRITE_TOKEN --name never-four`。
 
-```bash
-npx wrangler secret put WRITE_TOKEN --name never-four
-```
+---
 
-Local development:
+## curl
 
-```bash
-cp .dev.vars.example .dev.vars
-npm run db:migrate:local
-npm run dev
-```
-
-## POST Shape
-
-Curl example:
+用 `WRITE_TOKEN` 整组替换某个 setKey（下例是 `now`）。`items` 给 0–3 项，每项有 `text`、可选 `url`；给 4 项会返回 400。
 
 ```bash
+export NEVER_FOUR_URL="https://never-four.<你的子域>.workers.dev"
+export WRITE_TOKEN="你的-token"
+
 curl -X POST "$NEVER_FOUR_URL/api/sets/now" \
   -H "authorization: Bearer $WRITE_TOKEN" \
   -H "content-type: application/json" \
   --data '{
     "title": "当前三件事",
     "items": [
-      { "text": "Write the product page" },
-      { "text": "Read one paper", "url": "https://example.com" }
+      { "text": "写产品页面" },
+      { "text": "读一篇论文", "url": "https://example.com" }
     ]
   }'
 ```
 
-Shortcut example:
+成功返回更新后的组 JSON 和它的公开地址 `public_url`。把上面的 `now` 换成别的 setKey（如 `papers`、`books`），就是另一组的独立公开页。
 
-- Method: `POST`
-- URL: `https://<worker>.workers.dev/api/sets/now`
-- Headers: `authorization: Bearer <WRITE_TOKEN>`, `content-type: application/json`
-- Body: JSON with `title` and `items`
+---
+
+## iOS 快捷指令
+
+用「获取 URL 内容」动作即可一键更新：
+
+- **方法**：`POST`
+- **URL**：`https://never-four.<你的子域>.workers.dev/api/sets/now`
+- **请求头**：
+  - `authorization`：`Bearer <你的 WRITE_TOKEN>`
+  - `content-type`：`application/json`
+- **请求体**：选「JSON」，结构如下
 
 ```json
 {
-  "title": "Current Three",
+  "title": "当前三件事",
   "items": [
-    { "text": "Write the product page" },
-    { "text": "Read one paper", "url": "https://example.com" }
+    { "text": "写产品页面" },
+    { "text": "读一篇论文", "url": "https://example.com" }
   ]
 }
 ```
 
-Expected success response: the updated set JSON plus its public URL.
-
-## First Implementation Target
-
-Build the smallest Cloudflare Worker that satisfies V1:
-
-- D1 migration for sets and items.
-- `wrangler.toml` with Worker name, D1 binding, and required `WRITE_TOKEN` secret.
-- One Worker entrypoint for GET pages and POST replacement.
-- One small runnable check for auth, three-item rejection, and idempotent replacement.
-- README examples for `curl` and iOS Shortcuts.
-
-Skipped for V1: CLI, dynamic OG images, multi-user hosting, history, theme system, and public set index.
+运行后即可在公开页看到新内容。
