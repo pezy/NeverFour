@@ -386,7 +386,7 @@ function renderPage(set, env, currentUrl) {
 }
 
 function renderRepoLink(env) {
-  const url = env.REPO_URL;
+  const url = normalizeUrl(env.REPO_URL);
   if (!url) return "";
   return `<a class="repo" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">开源于 GitHub <span aria-hidden="true">↗</span></a>`;
 }
@@ -456,6 +456,7 @@ function html(body, headOnly, status = 200) {
 
 function formatDate(value) {
   const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "未知时间";
   const pad = (n) => String(n).padStart(2, "0");
   return `${date.getUTCFullYear()}.${pad(date.getUTCMonth() + 1)}.${pad(date.getUTCDate())}`;
 }
